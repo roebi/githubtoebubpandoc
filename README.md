@@ -49,7 +49,7 @@ The GitHub repository URL can be in either format:
 - `readme` - Processes only the README.md file
 - `wiki` - Processes only the wiki pages
 
-Examples:
+#### Examples
 ```bash
 # Convert both README and wiki
 ./podman_run.bsh https://github.com/user/repo
@@ -59,6 +59,7 @@ Examples:
 
 # Convert only wiki
 ./podman_run.bsh https://github.com/user/repo wiki
+```
 
 ## License
 
