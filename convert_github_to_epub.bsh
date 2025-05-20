@@ -8,7 +8,7 @@
 
 REPO_URL="$1"
 MODE="${2:-all}"  # Default to 'all' if not specified
-TIMESTAMP=$(date '+%Y%m%d-%H%M')
+TIMESTAMP=$(date '+%Y%m%d_%H%M')
 
 # Validate mode
 case "$MODE" in
@@ -24,8 +24,9 @@ esac
 REPO_NAME=$(basename -s .git "$REPO_URL")
 OUTFILE="/workspace/${REPO_NAME}.epub"
 
-LOGFILE="/workspace/${TIMESTAMP}_convert_github_to_epub.log"
-exec 1> "$LOGFILE" 2>&1
+LOGFILE="/workspace/convert_github_to_epub.log"
+# Redirect both stdout and stderr to tee which writes to both console and log file
+exec 1> >(tee "$LOGFILE") 2>&1
 
 echo "[$(date)] Starting conversion for $REPO_URL (Mode: $MODE)"
 
@@ -36,15 +37,39 @@ FILES=()
 
 # Process README if mode is 'all' or 'readme'
 if [[ "$MODE" == "all" || "$MODE" == "readme" ]]; then
-  git clone --depth 1 "$REPO_URL" repo
-  cd repo
-  if [ -f README.md ]; then
-    FILES+=(README.md)
-    echo "Found README.md"
+  if [[ "$MODE" == "readme" ]]; then
+    # Convert GitHub URL to raw content URL
+    RAW_URL=$(echo "$REPO_URL" | sed -e 's|github.com|raw.githubusercontent.com|' \
+                                    -e 's|\.git$||' \
+                                    -e 's|$|/refs/heads/master/README.md|')
+    
+    echo "Downloading README.md from $RAW_URL"
+    if curl -f -s -o "README.md" "$RAW_URL"; then      FILES+=(README.md)
+      echo "Found README.md"
+    else
+      # Try main branch if master fails
+      RAW_URL=$(echo "$REPO_URL" | sed -e 's|github.com|raw.githubusercontent.com|' \
+                                      -e 's|\.git$||' \
+                                      -e 's|$|/refs/heads/main/README.md|')
+      if curl -f -s -o "README.md" "$RAW_URL"; then
+        FILES+=(README.md)
+        echo "Found README.md"
+      else
+        echo "No README.md found"
+      fi
+    fi
   else
-    echo "No README.md found"
+    # Original git clone for 'all' mode
+    git clone --depth 1 "$REPO_URL" repo
+    cd repo
+    if [ -f README.md ]; then
+      FILES+=(README.md)
+      echo "Found README.md"
+    else
+      echo "No README.md found"
+    fi
+    cd ..
   fi
-  cd ..
 fi
 
 # Process Wiki if mode is 'all' or 'wiki'

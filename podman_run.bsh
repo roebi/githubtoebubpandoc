@@ -7,9 +7,10 @@
 # converts a GitHub repository's README.md and wiki pages to EPUB
 # using Pandoc.
 
-TIMESTAMP=$(date '+%Y%m%d-%H%M')
+TIMESTAMP=$(date '+%Y%m%d_%H%M')
 LOGFILE="${TIMESTAMP}_podman_run.log"
-exec 1> "$LOGFILE" 2>&1
+# Redirect both stdout and stderr to tee which writes to both console and log file
+exec 1> >(tee "$LOGFILE") 2>&1
 
 if [ $# -lt 1 ] || [ $# -gt 2 ]; then
   echo "Usage: $0 <GitHub Repo URL> [mode]"
@@ -31,12 +32,14 @@ podman run --name "$CONTAINER_NAME" "$IMAGE_NAME" "$REPO_URL" "$MODE"
 REPO_NAME=$(basename -s .git "$REPO_URL")
 EPUB_FILE="${REPO_NAME}.epub"
 
-# Copy the EPUB file from the container to the host
+# Wait a moment to ensure files are written
+sleep 1
+
+# Copy files from the container before it's removed
 podman cp "${CONTAINER_NAME}:/workspace/${EPUB_FILE}" "./${EPUB_FILE}"
 
-# Also copy the conversion log for reference
-CONVERT_LOG=$(podman exec "$CONTAINER_NAME" ls /workspace | grep convert_github_to_epub | head -n1)
-podman cp "${CONTAINER_NAME}:/workspace/${CONVERT_LOG}" "./${CONVERT_LOG}"
+# Copy the log file with timestamp added to the target name
+podman cp "${CONTAINER_NAME}:/workspace/convert_github_to_epub.log" "./${TIMESTAMP}_convert_github_to_epub.log" || true
 
 echo "[$(date)] EPUB file copied to host as: ${EPUB_FILE}"
 

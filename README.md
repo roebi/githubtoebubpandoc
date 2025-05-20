@@ -36,8 +36,12 @@ This project provides a containerized solution for converting GitHub repositorie
 
 ```bash
 ./podman_build.bsh
-./podman_run.bsh https://github.com/youruser/yourrepo.git [mode]
+./podman_run.bsh <GitHub Repository URL> [mode]
 ```
+
+The GitHub repository URL can be in either format:
+- `https://github.com/user/repo` 
+- `https://github.com/user/repo.git`
 
 ### Available Modes
 - `all` (default) - Processes both README.md and wiki pages

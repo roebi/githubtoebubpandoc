@@ -9,7 +9,8 @@
 #
 
 LOGFILE="$(date '+%Y%m%d_%H%M')_podman_build.log"
-exec 1> "$LOGFILE" 2>&1
+# Redirect both stdout and stderr to tee which writes to both console and log file
+exec 1> >(tee "$LOGFILE") 2>&1
 
 IMAGE_NAME="githubtoebubpandoc"
 
