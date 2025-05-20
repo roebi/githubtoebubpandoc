@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#
+# podman_build.bsh
+#
+# This script builds a Podman image
+# for converting GitHub repositories README.md and wiki pages to EPUB
+# using Pandoc.
+#
+
+LOGFILE="$(date '+%Y%m%d_%H%M')_podman_build.log"
+exec 1> "$LOGFILE" 2>&1
+
+IMAGE_NAME="githubtoebubpandoc"
+
+echo "[$(date)] Starting podman build ..."
+
+podman build -t "$IMAGE_NAME" .
+
+if [ "${PIPESTATUS[0]}" -eq 0 ]; then
+  echo "[$(date)] Build completed successfully."
+else
+  echo "[$(date)] Build failed."
+  exit 1
+fi

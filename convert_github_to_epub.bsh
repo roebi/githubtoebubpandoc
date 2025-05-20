@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# convert_github_to_epub.bsh
+#
+# This script converts a GitHub repository's README.md and wiki pages to EPUB
+# using Pandoc.
+# 
+
+REPO_URL="$1"
+MODE="${2:-all}"  # Default to 'all' if not specified
+TIMESTAMP=$(date '+%Y%m%d-%H%M')
+
+# Validate mode
+case "$MODE" in
+  all|readme|wiki)
+    ;;
+  *)
+    echo "Invalid mode: $MODE. Valid modes are: all, readme, wiki"
+    exit 1
+    ;;
+esac
+
+# Extract repo name
+REPO_NAME=$(basename -s .git "$REPO_URL")
+OUTFILE="/workspace/${REPO_NAME}.epub"
+
+LOGFILE="/workspace/${TIMESTAMP}_convert_github_to_epub.log"
+exec 1> "$LOGFILE" 2>&1
+
+echo "[$(date)] Starting conversion for $REPO_URL (Mode: $MODE)"
+
+cd /workspace
+rm -rf repo wiki wiki_combined.md
+
+FILES=()
+
+# Process README if mode is 'all' or 'readme'
+if [[ "$MODE" == "all" || "$MODE" == "readme" ]]; then
+  git clone --depth 1 "$REPO_URL" repo
+  cd repo
+  if [ -f README.md ]; then
+    FILES+=(README.md)
+    echo "Found README.md"
+  else
+    echo "No README.md found"
+  fi
+  cd ..
+fi
+
+# Process Wiki if mode is 'all' or 'wiki'
+if [[ "$MODE" == "all" || "$MODE" == "wiki" ]]; then
+  WIKI_URL="${REPO_URL%.git}.wiki.git"
+  if git ls-remote "$WIKI_URL" &>/dev/null; then
+    echo "Wiki found. Cloning wiki repo..."
+    git clone --depth 1 "$WIKI_URL" wiki
+    cd wiki
+    WIKI_FILES=($(find . -type f -name '*.md' | sort))
+    cd ..
+    for f in "${WIKI_FILES[@]}"; do
+      FILES+=(wiki/$f)
+    done
+    echo "Found ${#WIKI_FILES[@]} wiki files"
+  else
+    echo "No wiki found"
+  fi
+fi
+
+if [ ${#FILES[@]} -eq 0 ]; then
+  echo "No markdown files found for mode: $MODE"
+  exit 1
+fi
+
+echo "Combining markdown files ..."
+> wiki_combined.md
+for f in "${FILES[@]}"; do
+  echo -e "\n\n# File: $f\n\n" >> wiki_combined.md
+  cat "$f" >> wiki_combined.md
+done
+
+pandoc wiki_combined.md -o "$OUTFILE" \
+  --metadata title="$REPO_URL" \
+  --metadata author="$TIMESTAMP"
+
+echo "EPUB created: $OUTFILE"
